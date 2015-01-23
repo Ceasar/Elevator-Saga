@@ -29,7 +29,6 @@
             // If there are passengers, go to their floors, otherwise, go
             // to floors where passengers are waiting
             elevator.on("idle", function() {
-                elevator.stop();
                 if (elevator.loadFactor() > 0) {
                     $.each(floors, function(i, floor) {
                         if (destinations[i]) {
