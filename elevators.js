@@ -1,12 +1,14 @@
+
 ({
     init: function(elevators, floors) {
+        // Floors that passengers have hit the "Up" button at
+        var upPresses = {};
+        // Floors that passengers have hit the "Down" button at
+        var downPresses = {};
+
         $.each(elevators, function(i, elevator) {
             // Floors that passengers wish to exit at
             var destinations = {};
-            // Floors that passengers have hit the "Up" button at
-            var upPresses = {};
-            // Floors that passengers have hit the "Down" button at
-            var downPresses = {};
             $.each(floors, function(i, floor) {
                 destinations[i] = false;
                 upPresses[i] = 0;
