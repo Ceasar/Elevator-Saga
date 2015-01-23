@@ -17,15 +17,27 @@
             // to floors where passengers are waiting
             elevator.on("idle", function() {
                 elevator.stop();
-                $.each(floors, function(i, floor) {
-                    if (elevator.loadFactor() > 0) {
+                if (elevator.loadFactor() > 0) {
+                    $.each(floors, function(i, floor) {
                         if (destinations[i]) {
                             elevator.goToFloor(i);
                         }
-                    } else if (upPresses[i] || downPresses[i]) {
-                        elevator.goToFloor(i);
+                    });
+                } else {
+                    var i, distance;
+                    var shortestDistance = floors.length;
+                    var bestNonEmptyFloor = 0;
+                    for (i = 0; i < floors.length; i++) {
+                        distance = Math.abs(i - elevator.currentFloor());
+                        if (upPresses[i] || downPresses[i]) {
+                            if (distance < shortestDistance) {
+                                shortestDistance = distance;
+                                bestNonEmptyFloor = i;
+                            }
+                        }
                     }
-                });
+                    elevator.goToFloor(bestNonEmptyFloor);
+                }
                 
             });
 
