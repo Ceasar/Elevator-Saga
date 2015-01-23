@@ -1,4 +1,3 @@
-
 ({
     init: function(elevators, floors) {
         // Floors that passengers have hit the "Up" button at
@@ -26,19 +25,7 @@
                         }
                     });
                 } else {
-                    var i, distance;
-                    var shortestDistance = floors.length;
-                    var bestNonEmptyFloor = 0;
-                    for (i = 0; i < floors.length; i++) {
-                        distance = Math.abs(i - elevator.currentFloor());
-                        if (upPresses[i] || downPresses[i]) {
-                            if (distance < shortestDistance) {
-                                shortestDistance = distance;
-                                bestNonEmptyFloor = i;
-                            }
-                        }
-                    }
-                    elevator.goToFloor(bestNonEmptyFloor);
+                    elevator.goToFloor(0);
                 }
                 
             });
