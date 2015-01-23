@@ -4,26 +4,30 @@
         var upPresses = {};
         // Floors that passengers have hit the "Down" button at
         var downPresses = {};
+        $.each(floors, function(i, floor) {
+            upPresses[i] = 0;
+            downPresses[i] = 0;
+        });
+
+        var isEmpty = function(floorNum) {
+            return !(upPresses[floorNum] || downPresses[floorNum]);
+        };
 
         var getNonEmptyFloors = function() {
             var rv = [];
             for (var i = 0; i < floors.length; i++) {
-                if (upPresses[i]) {
-                    rv.push(i);
-                } else if (downPresses[i]) {
+                if (!isEmpty(i)) {
                     rv.push(i);
                 }
             }
             return rv;
         };
 
-        $.each(elevators, function(i, elevator) {
-            // Floors that passengers wish to exit at
-            var destinations = {};
-            $.each(floors, function(i, floor) {
-                destinations[i] = false;
-                upPresses[i] = 0;
-                downPresses[i] = 0;
+         $.each(elevators, function(i, elevator) {
+             // Floors that passengers wish to exit at
+             var destinations = {};
+             $.each(floors, function(i, floor) {
+                 destinations[i] = false;
             });
 
             // If there are passengers, go to their floors, otherwise, go
