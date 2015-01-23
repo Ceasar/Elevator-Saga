@@ -39,8 +39,10 @@
                     if (destinations[floorNum]) {
                         elevator.goToFloor(floorNum, true);
                     }
-                } else if (upPresses[floorNum] || downPresses[floorNum]) {
-                    elevator.goToFloor(floorNum, true);
+                } else if (elevator.loadFactor() < 1) {
+                    if (upPresses[floorNum] || downPresses[floorNum]) {
+                        elevator.goToFloor(floorNum, true);
+                    }
                 }
                 
             });
