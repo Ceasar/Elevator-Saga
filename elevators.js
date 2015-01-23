@@ -5,6 +5,18 @@
         // Floors that passengers have hit the "Down" button at
         var downPresses = {};
 
+        var getNonEmptyFloors = function() {
+            var rv = [];
+            for (var i = 0; i < floors.length; i++) {
+                if (upPresses[i]) {
+                    rv.push(i);
+                } else if (downPresses[i]) {
+                    rv.push(i);
+                }
+            }
+            return rv;
+        };
+
         $.each(elevators, function(i, elevator) {
             // Floors that passengers wish to exit at
             var destinations = {};
@@ -25,7 +37,7 @@
                         }
                     });
                 } else {
-                    elevator.goToFloor(0);
+                    elevator.goToFloor(getNonEmptyFloors()[0] || 0);
                 }
                 
             });
