@@ -49,12 +49,12 @@
             });
 
             elevator.on("passing_floor", function(floorNum, direction) {
-                if (elevator.loadFactor() > 0) {
-                    if (destinations[floorNum]) {
-                        elevator.goToFloor(floorNum, true);
-                    }
-                } else if (elevator.loadFactor() < 1) {
+                if (destinations[floorNum]) {
+                    elevator.stop();
+                    elevator.goToFloor(floorNum, true);
+                } else if (elevator.loadFactor() < 0.5) {
                     if (upPresses[floorNum] || downPresses[floorNum]) {
+                        elevator.stop();
                         elevator.goToFloor(floorNum, true);
                     }
                 }
