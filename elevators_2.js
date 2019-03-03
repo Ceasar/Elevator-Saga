@@ -1,8 +1,121 @@
 {
   init: function(elevators, floors) {
-    var presses = [];
-    var upButtonPressed = {};
-    var dnButtonPressed = {};
+    var state = {
+      elevators: {},
+      upButtonPressed: {},
+      dnButtonPressed: {},
+    }
+    floors.forEach(function(floor) {
+      var floorNum = floor.floorNum();
+      state.upButtonPressed[floorNum] = false;
+      state.dnButtonPressed[floorNum] = false;
+    });
+    elevators.forEach(function(elevator, i) {
+      state.elevators[i] = {
+        destinationQueue: [],
+        goingUpIndicator: true,
+        goingDnIndicator: true,
+      };
+    });
+
+    function reduce(state, action) {
+      switch (action.type) {
+        case "up_button_pressed":
+          state.upButtonPressed[action.floorNum] = true;
+          return state;
+        case "down_button_pressed":
+          state.dnButtonPressed[action.floorNum] = true;
+          return state;
+        case "idle":
+          var elevator = state.elevators[action.elevatorNumber];
+          elevator.destinationQueue.push(action.currentFloor);
+          elevator.goingUpIndicator = true;
+          elevator.goingDnIndicator = true;
+          return state;
+        case "floor_button_pressed":
+          var elevator = state.elevators[action.elevatorNumber];
+          elevator.destinationQueue.push(action.floorNum);
+          elevator.destinationQueue.sort();
+          if (elevator.goingDnIndicator) {
+            elevator.destinationQueue.reverse();
+          }
+
+          if (elevator.destinationQueue[0] > action.currentFloor) {
+            elevator.goingDnIndicator = false;
+          } else {
+            elevator.goingUpIndicator = false;
+          }
+          return state;
+        case "stopped_at_floor":
+          var elevator = state.elevators[action.elevatorNumber];
+          arrRemove(elevator.destinationQueue, action.floorNum);
+          return state;
+        default:
+          return state;
+      }
+    }
+
+    function dispatch(action) {
+      var nextState = reduce(copy(state), action);
+      console.log(state, action, nextState);
+      state = nextState;
+      elevators.forEach(function(elevator, i) {
+        var elevatorState = state.elevators[i];
+        elevator.goingUpIndicator(elevatorState.goingUpIndicator);
+        elevator.goingDownIndicator(elevatorState.goingDnIndicator);
+        elevator.destinationQueue = elevatorState.destinationQueue;
+        elevator.checkDestinationQueue();
+      });
+    }
+
+    floors.forEach(function(floor) {
+      var floorNum = floor.floorNum();
+      floor.on("up_button_pressed", function() {
+        dispatch({
+          type: "up_button_pressed",
+          floorNum: floorNum,
+        });
+      });
+      floor.on("down_button_pressed", function() {
+        dispatch({
+          type: "down_button_pressed",
+          floorNum: floorNum,
+        });
+      });
+    });
+
+    elevators.forEach(function(elevator, elevatorNumber) {
+      elevator.on("idle", function() {
+        dispatch({
+          type: "idle",
+          currentFloor: elevator.currentFloor(),
+          elevatorNumber: elevatorNumber,
+        });
+      });
+
+      elevator.on("floor_button_pressed", function(floorNum) {
+        dispatch({
+          type: "floor_button_pressed",
+          currentFloor: elevator.currentFloor(),
+          elevatorNumber: elevatorNumber,
+          floorNum: floorNum,
+        });
+      });
+
+      elevator.on("stopped_at_floor", function(floorNum) {
+        dispatch({
+          type: "stopped_at_floor",
+          elevatorNumber: elevatorNumber,
+          floorNum: floorNum,
+        });
+      });
+    });
+
+    // Utilities
+
+    function copy(o) {
+      return JSON.parse(JSON.stringify(o));
+    }
 
     function arrRemove(arr, value) {
       var index = arr.indexOf(value);
@@ -11,98 +124,6 @@
       }
     }
 
-    floors.forEach(function(floor) {
-      var floorNum = floor.floorNum();
-      upButtonPressed[floorNum] = false;
-      dnButtonPressed[floorNum] = false;
-
-      floor.on("up_button_pressed", function() {
-        upButtonPressed[floorNum] = true;
-        presses.push({
-          floorNum: floorNum,
-          direction: "up",
-        });
-      });
-      floor.on("down_button_pressed", function() {
-        dnButtonPressed[floorNum] = true;
-        presses.push({
-          floorNum: floorNum,
-          direction: "down"
-        });
-      });
-    });
-
-    elevators.forEach(function(elevator, elevatorNumber) {
-      function findPassenger() {
-        console.log(elevatorNumber, 'findPassenger', presses);
-        var press = presses.shift();
-        if (press !== undefined) {
-          if (press.direction === "up") {
-            elevator.goingDownIndicator(false);
-          } else {
-            elevator.goingUpIndicator(false);
-          }
-          elevator.goToFloor(press.floorNum);
-          return;
-        }
-      }
-
-      function idle() {
-        elevator.goingUpIndicator(true);
-        elevator.goingDownIndicator(true);
-
-        findPassenger();
-      }
-
-      floors.forEach(function(floor) {
-        var isIdle = elevator.destinationQueue.length === 0;
-        floor.on("up_button_pressed", function() {
-          if (isIdle) {
-            idle();
-          }
-        });
-        floor.on("down_button_pressed", function() {
-          if (isIdle) {
-            idle();
-          }
-        });
-      });
-
-      elevator.on("idle", idle);
-
-      elevator.on("floor_button_pressed", function(floorNum) {
-        if (elevator.destinationQueue.length === 0) {
-          if (floorNum > elevator.currentFloor()) {
-            elevator.goingDownIndicator(false);
-          } else {
-            elevator.goingUpIndicator(false);
-          }
-        }
-        elevator.goToFloor(floorNum);
-        elevator.destinationQueue.sort();
-        if (elevator.goingDownIndicator()) {
-          elevator.destinationQueue.reverse();
-        }
-        console.log("floor_button_pressed", elevator.destinationQueue);
-        elevator.checkDestinationQueue();
-      });
-
-      elevator.on("stopped_at_floor", function(floorNum) {
-        console.log(elevatorNumber, "stopped_at_floor", floorNum, presses);
-        if (elevator.goingUpIndicator()) {
-          arrRemove(presses, {
-            floorNum: floorNum,
-            direction: "up",
-          })
-        }
-        if (elevator.goingDownIndicator()) {
-          arrRemove(presses, {
-            floorNum: floorNum,
-            direction: "down",
-          })
-        }
-      });
-    });
   },
   update: function(dt, elevators, floors) {
       // We normally don't need to do anything here
