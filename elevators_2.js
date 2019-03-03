@@ -17,37 +17,30 @@
     });
 
     elevators.forEach(function(elevator, elevatorNumber) {
-      var floorButtonsPressed = {};
-
-      var goingUp = true;
-      elevator.goingUpIndicator(true);
-      elevator.goingDownIndicator(false);
-
       elevator.on("idle", function() {
-        var floor;
-        if (elevator.loadFactor() > 0) {
-          if (goingUp) {
-            floor = floors.length - 1;
-          } else {
-            floor = 0;
-          }
-        } else {
-          floor = 0;
-        }
-        elevator.goToFloor(floor);
+        elevator.goingUpIndicator(true);
+        elevator.goingDownIndicator(true);
       });
 
       elevator.on("floor_button_pressed", function(floorNum) {
-        floorButtonsPressed[floorNum] = 1;
+        if (elevator.destinationQueue.length === 0) {
+          if (floorNum > elevator.currentFloor()) {
+            elevator.goingUpIndicator(true);
+          } else {
+            elevator.goingDownIndicator(true);
+          }
+        }
+        elevator.goToFloor(floorNum);
+        elevator.destinationQueue.sort();
+        if (elevator.goingDownIndicator()) {
+          elevator.destinationQueue.reverse();
+        }
+        elevator.checkDestinationQueue();
       });
 
       elevator.on("passing_floor", function(floorNum) {
         var direction = elevator.destinationDirection();
-        if (floorButtonsPressed[floorNum]) {
-          floorButtonsPressed[floorNum] = 0;
-          elevator.goToFloor(floorNum, true);
-        }
-        if (elevator.loadFactor() < 1.0) {
+        if (elevator.loadFactor() < 0.5) {
           if (direction === "up" && upButtonPressed[floorNum]) {
             upButtonPressed[floorNum] = false;
             elevator.goToFloor(floorNum, true);
@@ -61,18 +54,6 @@
 
       elevator.on("stopped_at_floor", function(floorNum) {
         console.log(elevatorNumber, "stopped_at_floor", floorNum);
-
-        if (floorNum === 0) {
-          floorButtonsPressed[floorNum] = 0;
-          goingUp = true;
-          elevator.goingUpIndicator(true);
-          elevator.goingDownIndicator(false);
-        } else if (floorNum === floors.length - 1) {
-          floorButtonsPressed[floorNum] = 0;
-          goingUp = false;
-          elevator.goingUpIndicator(false);
-          elevator.goingDownIndicator(true);
-        }
       });
     });
   },
