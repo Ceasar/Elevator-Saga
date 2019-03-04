@@ -2,38 +2,47 @@
   init: function(elevators, floors) {
     var state = {
       elevators: {},
-      upButtonPressed: {},
-      dnButtonPressed: {},
+      presses: [],
+      buttonPressed: {},
     }
     floors.forEach(function(floor) {
       var floorNum = floor.floorNum();
-      state.upButtonPressed[floorNum] = false;
-      state.dnButtonPressed[floorNum] = false;
+      state.buttonPressed[floorNum] = {
+        "up": false,
+        "down": false,
+      };
     });
     elevators.forEach(function(elevator, i) {
       state.elevators[i] = {
         destinationQueue: [],
         goingUpIndicator: true,
         goingDnIndicator: true,
+        maxPassengerCount: elevator.maxPassengerCount(),
       };
     });
 
     function reduce(state, action) {
       switch (action.type) {
         case "up_button_pressed":
-          state.upButtonPressed[action.floorNum] = true;
+          state.buttonPressed[action.floorNum]["up"] = true;
+          state.presses.push(action.floorNum);
           return state;
         case "down_button_pressed":
-          state.dnButtonPressed[action.floorNum] = true;
+          state.buttonPressed[action.floorNum]["down"] = true;
+          state.presses.push(action.floorNum);
           return state;
         case "idle":
-          var elevator = state.elevators[action.elevatorNumber];
-          elevator.destinationQueue.push(action.currentFloor);
-          elevator.goingUpIndicator = true;
-          elevator.goingDnIndicator = true;
+          var elevator = state.elevators[action.elevatorNum];
+          var press;
+          if (state.presses.length > 0) {
+            press = state.presses.shift();
+            elevator.destinationQueue.push(press);
+          } else {
+            elevator.destinationQueue.push(action.currentFloor);
+          }
           return state;
         case "floor_button_pressed":
-          var elevator = state.elevators[action.elevatorNumber];
+          var elevator = state.elevators[action.elevatorNum];
           elevator.destinationQueue.push(action.floorNum);
           elevator.destinationQueue.sort();
           if (elevator.goingDnIndicator) {
@@ -46,9 +55,29 @@
             elevator.goingUpIndicator = false;
           }
           return state;
+        case "passing_floor":
+          var elevator = state.elevators[action.elevatorNum];
+          var spaceLeft = elevator.maxPassengerCount * (1 - action.loadFactor);
+          if (spaceLeft > 1 &&
+              action.destinationDirection === action.direction &&
+              state.buttonPressed[action.floorNum][action.direction]) {
+            elevator.destinationQueue.unshift(action.floorNum);
+          }
+          return state;
         case "stopped_at_floor":
-          var elevator = state.elevators[action.elevatorNumber];
+          var elevator = state.elevators[action.elevatorNum];
+          arrRemove(state.presses, action.floorNum);
           arrRemove(elevator.destinationQueue, action.floorNum);
+          if (elevator.destinationQueue.length === 0) {
+            elevator.goingUpIndicator = true;
+            elevator.goingDnIndicator = true;
+          }
+          if (elevator.goingUpIndicator) {
+            state.buttonPressed[action.floorNum]["up"] = false;
+          }
+          if (elevator.goingDnIndicator) {
+            state.buttonPressed[action.floorNum]["down"] = false;
+          }
           return state;
         default:
           return state;
@@ -84,12 +113,12 @@
       });
     });
 
-    elevators.forEach(function(elevator, elevatorNumber) {
+    elevators.forEach(function(elevator, elevatorNum) {
       elevator.on("idle", function() {
         dispatch({
           type: "idle",
           currentFloor: elevator.currentFloor(),
-          elevatorNumber: elevatorNumber,
+          elevatorNum: elevatorNum,
         });
       });
 
@@ -97,16 +126,28 @@
         dispatch({
           type: "floor_button_pressed",
           currentFloor: elevator.currentFloor(),
-          elevatorNumber: elevatorNumber,
+          elevatorNum: elevatorNum,
           floorNum: floorNum,
+        });
+      });
+
+      elevator.on("passing_floor", function(floorNum, direction) {
+        dispatch({
+          type: "passing_floor",
+          destinationDirection: elevator.destinationDirection(),
+          direction: direction,
+          elevatorNum: elevatorNum,
+          floorNum: floorNum,
+          loadFactor: elevator.loadFactor(),
         });
       });
 
       elevator.on("stopped_at_floor", function(floorNum) {
         dispatch({
           type: "stopped_at_floor",
-          elevatorNumber: elevatorNumber,
+          elevatorNum: elevatorNum,
           floorNum: floorNum,
+          loadFactor: elevator.loadFactor(),
         });
       });
     });
